@@ -13,17 +13,18 @@ class YoloDataset(Dataset):
     def __init__(self,
                  csv_dir,
                  img_dir,
-                 anchors,
+                 label_dir,
+                 anchors, # 3 anchors for 3 scales
                  image_size=416,
                  S=[19, 38, 76],
                  C=80, 
                  transform=None):
         self.annotations = pd.read_csv(csv_dir)
         self.image_dir = img_dir
-        self.labels = transform
+        self.labels = label_dir
         self.anchors = torch.tensor(anchors[0] + anchors[1] + anchors[2]) # 3 anchors for 3 scales
         self.S = S
-        self.num_anchors = self.anchors.shape[0]
+        self.num_anchors = self.anchors.shape[0] # 9 anchors.shape = (9, 2)
         self.num_anchors_per_scale = self.num_anchors // 3
         self.C = C
         self.ignore_iou_threshold = 0.5
@@ -32,8 +33,8 @@ class YoloDataset(Dataset):
             return len(self.annotations)
         
         def __getitem__(self, index):
-            label_path = os.path.join(self.image_dir, self.annotations.iloc[index, 1])
-            bboxes = np.roll(np.loadtxt(fname=label_path, delimiter=" ", ndmin=2), 4) # [class, x, y, w, h] -> [x, y, w, h, class]
+            label_path = os.path.join(self.label_dir, self.annotations.iloc[index, 1])
+            bboxes = np.roll(np.loadtxt(fname=label_path, delimiter=" ", ndmin=2), 4).tolist() # [class, x, y, w, h] -> [x, y, w, h, class]
             img_path = os.path.join(self.image_dir, self.annotations.iloc[index, 0])
             image = np.array(Image.open(img_path).convert("RGB"))
             
