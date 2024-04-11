@@ -59,11 +59,12 @@ class YoloDataset(Dataset):
                     anchor_taken = targets[scale_idx][anchor_on_scale, i, j, 0] # 0 = P_o
                     if not anchor_taken and not has_anchor[scale_idx]: 
                         targets[scale_idx][anchor_on_scale, i, j, 0] = 1
-                        x_cell, y_cell = S * x - j, S * y - i # x and y relative to cell
-                        width_cell, height_cell = w * S, h * S # width and height relative to cell
+                        x_cell, y_cell = S * x - j, S * y - i # x and y relative to cell and x_cell, y_cell = 0-1
+                        width_cell, height_cell = w * S, h * S 
                         box_coordinates = torch.tensor([x_cell, y_cell, width_cell, height_cell])
                         targets[scale_idx][anchor_on_scale, i, j, 1:5] = box_coordinates
                         targets[scale_idx][anchor_on_scale, i, j, 5] = int(class_label)
+                        has_anchor[scale_idx] = True
                         
                     elif not anchor_taken and iou_anchors[anchor_idx] > self.ignore_iou_threshold:
                         targets[scale_idx][anchor_on_scale, i, j, 0] = -1 # ignore prediction
