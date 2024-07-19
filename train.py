@@ -7,6 +7,7 @@ from model import YoloV3
 from tqdm import tqdm
 
 from loss import YoloLoss
+import utils
 
 
 torch.backends.cudnn.benchmark = True
@@ -23,7 +24,7 @@ def train(train_loader, model, optimizer, loss_fn, scaled_anchors, scaler):
             y[2].to(config.DEVICE),
         )
         with torch.cuda.amp.autocast():
-            out = model(x)
+            out = model(x) 
             loss = (loss_fn(out[0], y0, scaled_anchors[0]) + loss_fn(out[1], y1, scaled_anchors[1])
                     + loss_fn(out[2], y2, scaled_anchors[2]))
         losses.append(loss.item())
@@ -42,26 +43,12 @@ def main():
     loss_fn = YoloLoss()
     scaler = torch.cuda.amp.GradScaler()
     
-    train_loader = DataLoader(
-        dataset=dataset,
-        batch_size=config.batch_size,
-        num_workers=config.num_workers,
-        shuffle=config.shuffle,
-        pin_memory=config.pin_memory,
-    )
-    test_loader = DataLoader(
-        dataset=dataset,
-        batch_size=config.batch_size,
-        num_workers=config.num_workers,
-        shuffle=config.shuffle,
-        pin_memory=config.pin_memory,
-    )
+    train_loader, test_loader, train_eval_loader = utils.get_data(config.csv_train_data/train.csv, config.csv_test_data/test.csv)
     
     scaled_anchors = (
-        torch.tensor(config.anchors)
+        torch.tensor(config.ANCHORS)
         * torch.tensor(config.S).unsqueeze(1).unsqueeze(2).repeat(1, 3, 2)
-    ).to(config.DEVICE) 
-    
+    ).to(config.DEVICE)
     for epoch in range(cofig.Epochs):
         train(train_loader, model, optimizer, loss_fn, scaled_anchors, scaler)
         

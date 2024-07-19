@@ -7,14 +7,14 @@ import iou
 from PIL import Image, ImageFile
 
 
-ImageFile.LOAD_TRUNCATED_IMAGES = True
+ImageFile.LOAD_TRUNCATED_IMAGES = True # to avoid error: "image file is truncated"
 
 class YoloDataset(Dataset):
     def __init__(self,
                  csv_dir,
                  img_dir,
                  label_dir,
-                 anchors, # 3 anchors for 3 scales
+                 anchors, # 3 anchors for 3 scales: anchors sample: [[0.275, 0.3203125], [0.068, 0.11328125], [0.017, 0.03]] 
                  image_size=416,
                  S=[19, 38, 76],
                  C=80, 
@@ -30,9 +30,9 @@ class YoloDataset(Dataset):
         self.ignore_iou_threshold = 0.5
         
         def __len__(self):
-            return len(self.annotations)
+            return len(self.annotations) # number of samples in dataset
         
-        def __getitem__(self, index):
+        def __getitem__(self, index): # retrieve a sample from dataset
             label_path = os.path.join(self.label_dir, self.annotations.iloc[index, 1])
             bboxes = np.roll(np.loadtxt(fname=label_path, delimiter=" ", ndmin=2), 4).tolist() # [class, x, y, w, h] -> [x, y, w, h, class]
             img_path = os.path.join(self.image_dir, self.annotations.iloc[index, 0])
@@ -43,17 +43,17 @@ class YoloDataset(Dataset):
                 image = augmentations["image"]
                 bboxes = augmentations["bboxes"]
             
-            targets = [torch.zeros((self.num_anchors // 3, S, S, 6)) for S in self.S] # 6 = [P_o, x, y, w, h, class]
+            targets = [torch.zeros((self.num_anchors // 3, S, S, 6)) for S in self.S] # 6 = [P_o, x, y, w, h, class=80] P_o = 1 if object exists in cell
             
             for box in bboxes:
                 iou_anchors = iou(torch.tensor(box[2:4]), self.anchors) # iou of ground truth box with anchors num = 9
                 anchor_indices = iou_anchors.argsort(descending=True, dim=0)
                 x, y, w, h, class_label = box
-                has_anchor = [False, False, False]
+                has_anchor = [False, False, False] 
                 
                 for anchor_idx in anchor_indices:
-                    scale_idx = anchor_idx // self.num_anchors_per_scale # 0, 1, 2 
-                    anchor_on_scale = anchor_idx % self.num_anchors_per_scale # 0, 1, 2
+                    scale_idx = anchor_idx // self.num_anchors_per_scale # 0, 1, 2 which target we are going to assign
+                    anchor_on_scale = anchor_idx % self.num_anchors_per_scale # 0, 1, 2 which anchor on scale we are going to assign
                     S = self.S[scale_idx]
                     i, j = int(S * y), int(S * x)
                     anchor_taken = targets[scale_idx][anchor_on_scale, i, j, 0] # 0 = P_o
@@ -67,7 +67,6 @@ class YoloDataset(Dataset):
                         has_anchor[scale_idx] = True
                         
                     elif not anchor_taken and iou_anchors[anchor_idx] > self.ignore_iou_threshold:
-                        targets[scale_idx][anchor_on_scale, i, j, 0] = -1 # ignore prediction
+                        targets[scale_idx][anchor_on_scale, i, j, 0] = -1 # ignore prediction example: no object but iou > threshold 
                         
         return image, tuple(targets)
-                        

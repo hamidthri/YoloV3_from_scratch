@@ -28,7 +28,7 @@ class YoloLoss(nn.Module):
         )
         
         # object loss
-        anchors = anchors.reshape(1, 3, 1, 1, 2) # 3: 3 anchors, 2: x, y reshape: because of broadcasting
+        anchors = anchors.reshape(1, 3, 1, 1, 2) # 3: 3 anchors, 2: x, y reshape: because of broadcasting. p_w * exp(t_w) and p_h * exp(t_h)
         box_preds = torch.cat(
             [self.sigmoid(predictions[..., 1:3]), torch.exp(predictions[..., 3:5]) * anchors], dim=-1 # 1:3 x, y, 3:5 w, h
         )
@@ -43,7 +43,7 @@ class YoloLoss(nn.Module):
         )
         
         # box coordinate loss
-        predictions[..., 1:3] = self.sigmoid(predictions[..., 1:3])
+        predictions[..., 1:3] = self.sigmoid(predictions[..., 1:3]) # x, y to be between 0 and 1
         target[..., 3:5] = torch.log(
             (1e-16 + target[..., 3:5] / anchors)
         )
@@ -57,4 +57,16 @@ class YoloLoss(nn.Module):
             + self.lambda_noobj * noobj_loss
             + self.lambda_class * class_loss
         )
+
+# test
+def test():
+    anchors = torch.tensor([[0.275, 0.3203125], [0.068, 0.11328125], [0.017, 0.03]])
+    target = torch.zeros((3, 13, 13, 6))
+    target[..., 0] = 1
+    predictions = torch.rand((3, 13, 13, 6))
+    loss = YoloLoss()
+    print(loss(predictions, target, anchors))
+
+if __name__ == "__main__":
+    test()
         
